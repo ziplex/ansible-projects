@@ -1,0 +1,250 @@
+---
+    - name: 'Update repository and system by running:'
+      apt: 
+        update_cache: yes  
+        upgrade: dist  
+       
+    - name: 'Install csync2, fio and  ceph-common tools:'
+      apt: name={{ item }} state=present update_cache=yes 
+      with_items:
+        - csync2
+        - ceph-common
+        - fio  
+      register: csyncinstalled 
+   
+
+    - name: 'Create config dirrectory for ceph'
+      when: csyncinstalled|success
+      file: path={{ ceph_config_path }}  mode=755 state=directory owner=root group=root
+      register: createconfigdir
+
+    - name: 'Create lib dirrectory for ceph'
+      when: csyncinstalled|success
+      file: path={{ ceph_lib_path }}  mode=755 state=directory owner=root group=root
+      register: createlibdir
+
+    - name: 'Install python openssl lib'
+      pip:
+        name: pyOpenSSL
+        state: present        
+   
+    - name: 'Generate openssl private key for csync2'
+      when: ansible_hostname == masternode|string
+      openssl_privatekey:
+        path: /etc/csync2_ssl_key.pem
+        size: 1024
+        type: RSA
+   
+    - name: 'Generate openssl certificate sign request for csync2'
+      when: ansible_hostname == masternode|string
+      openssl_csr:
+        path: /etc/csync2_ssl_cert.csr
+        privatekey_path: /etc/csync2_ssl_key.pem
+        common_name: 'sync certificate'
+
+    - name: 'Generate openssl x509 cert'
+      when: ansible_hostname == masternode|string
+      command: openssl x509 -req -days 900 -in /etc/csync2_ssl_cert.csr -signkey /etc/csync2_ssl_key.pem -out /etc/csync2_ssl_cert.pem creates=/etc/csync2_ssl_cert.pem 
+
+
+    - name: 'Generate csync2 cluster key'
+      when: ansible_hostname == masternode|string
+      command: /usr/sbin/csync2 -k /etc/csync2.cluster.key creates=/etc/csync2.cluster.key 
+
+    - name: 'Copy template config for csync2'
+      when: ansible_hostname == masternode|string
+      template:
+         src: csync2.j2
+         dest: /etc/csync2.cfg
+         backup: yes
+    
+    - name: 'Fetch csync2 key to ansible  node '
+      when: ansible_hostname == masternode|string
+      fetch:
+        src: /etc/csync2.cluster.key
+        dest: /tmp/csync2.cluster.key
+        flat: yes
+      tags: fetch
+
+    - name: 'Fetch /etc/csync2_ssl_cert.pem to ansible node '
+      when: ansible_hostname == masternode|string
+      fetch:
+        src: /etc/csync2_ssl_cert.pem
+        dest: /tmp/csync2_ssl_cert.pem
+        flat: yes
+      tags: fetch
+
+    - name: 'Fetch /etc/csync2_ssl_key.pem to ansible node '
+      when: ansible_hostname == masternode|string
+      fetch:
+        src: /etc/csync2_ssl_key.pem
+        dest: /tmp/csync2_ssl_key.pem
+        flat: yes
+      tags: fetch
+
+    - name: 'Fetch csync2 config to ansible node '
+      when: ansible_hostname == masternode|string
+      fetch:
+        src: /etc/csync2.cfg
+        dest: /tmp/csync2.cfg
+        flat: yes
+      tags: fetch
+     
+    - name: 'Copy /etc/csync2_ssl_cert.pem for all nodes'
+      when: ansible_hostname != masternode|string
+      copy: src=/tmp/csync2_ssl_cert.pem  dest=/etc  owner=root group=root mode=644
+ 
+    - name: 'Copy csync2_ssl_key.pem for all nodes'
+      when: ansible_hostname != masternode|string
+      copy: src=/tmp/csync2_ssl_key.pem  dest=/etc  owner=root group=root mode=644
+ 
+
+    - name: 'Copy csync2 key for all nodes'
+      when: ansible_hostname != masternode|string
+      copy: src=/tmp/csync2.cluster.key  dest=/etc  owner=root group=root mode=600
+ 
+
+    - name: 'Copy csync2.cfg for all nodes'
+      when: ansible_hostname != masternode|string
+      copy: src=/tmp/csync2.cfg  dest=/etc  owner=root group=root mode=644
+   
+    - name: 'Sync all nodes'  
+      when: ansible_hostname == masternode|string
+      command: /usr/sbin/csync2 -x
+  
+    - name: 'Start Ceph monitor on masternode'
+      when: ansible_hostname == masternode|string
+      docker_container:
+          name: mon1
+          image: ceph/daemon
+          restart_policy: always
+          volumes:
+             - /etc/ceph:/etc/ceph
+             - /var/lib/ceph/:/var/lib/ceph
+          network_mode: host
+          detach: yes
+          env:
+             MON_IP: '{{ ansible_enp0s8.ipv4.address }}'
+             CEPH_PUBLIC_NETWORK: '{{ ansible_enp0s8.ipv4.network}}/24'
+          command: mon
+      register: mastermon
+      tags: mastermon        
+
+    - name: 'Sync config ceph for all nodes'  
+      when:  mastermon|success and ansible_hostname == masternode|string
+      command: /usr/sbin/csync2 -x
+      register: syncceph
+      tags: csync
+
+    - name: sleep for 10 seconds and continue with play
+      wait_for: timeout=10
+      delegate_to: localhost
+
+    - name: 'Start Ceph monitor on all nodes'
+      when: ansible_hostname != masternode|string and mastermon|success and syncceph|success
+      docker_container:
+          name: mon1
+          restart_policy: always
+          image: ceph/daemon
+          volumes:
+             - /etc/ceph:/etc/ceph
+             - /var/lib/ceph/:/var/lib/ceph
+          network_mode: host
+          detach: yes
+          env:
+             MON_IP: '{{ ansible_enp0s8.ipv4.address }}'
+             CEPH_PUBLIC_NETWORK: '{{ ansible_enp0s8.ipv4.network}}/24'
+          command: mon
+      register: allmonsrun
+      tags: allmonsrun     
+
+    - name: 'Start Ceph OSD1  on all nodes'
+      docker_container:
+          name: osd1
+          restart_policy: always
+          image: ceph/daemon
+          privileged: true
+          volumes:
+             - /etc/ceph:/etc/ceph
+             - /var/lib/ceph/:/var/lib/ceph
+             - /dev/:/dev/  
+          network_mode: host
+          detach: yes
+          env:
+             OSD_DEVICE: /dev/sdb
+             OSD_FORCE_ZAP: 1
+          command: osd
+       
+    - name: 'Start Ceph OSD2  on all nodes'
+      docker_container:
+          name: osd2
+          restart_policy: always
+          image: ceph/daemon
+          privileged: true
+          volumes:
+             - /etc/ceph:/etc/ceph
+             - /var/lib/ceph/:/var/lib/ceph
+             - /dev/:/dev/  
+          network_mode: host
+          detach: yes
+          env:
+             OSD_DEVICE: /dev/sdc
+             OSD_FORCE_ZAP: 1
+          command: osd
+
+    - name: 'Start Ceph OSD3  on all nodes'
+      docker_container:
+          name: osd3
+          restart_policy: always
+          image: ceph/daemon
+          privileged: true
+          volumes:
+             - /etc/ceph:/etc/ceph
+             - /var/lib/ceph/:/var/lib/ceph
+             - /dev/:/dev/  
+          network_mode: host
+          detach: yes
+          env:
+             OSD_DEVICE: /dev/sdd
+             OSD_FORCE_ZAP: 1
+          command: osd
+
+     #create new pool
+     #docker exec mon1 ceph osd pool create test 256 256    
+     #    - name: 'Transfer file from node1  to node2 '
+     #      when: ansible_hostname == 'ceph-node1'
+     #      synchronize:
+     #         mode: pull    
+     #         src: files/csync2.cfg
+     #         dest: /etc/csync2.cfg
+     #
+      #   - name: 'Copy CA generation script'
+      #   - when: csyncinstalled|success and ansible_hostname =='ceph-node1'
+      #   - copy: src=create_ca.sh dest=/tmp  owner=root group=root mode=755
+    
+      #   - name: Generate
+      #   - shell: /tmp/create_ca.sh
+      #   - args:
+      #   -   chdir: /tmp
+      #   - when: ansible_hostname == 'ceph-node1'
+      #   - register: certgen
+
+      #   - name: 'Fetch file from master node'
+      #   - hosts: source-servers
+      #   - fetch:
+      #   -   src: /etc/csync2.cluster.key
+      #   -   dest: /etc
+      #   - when: certgen|success
+
+      #   - name: 'Copy csync2.cluster.key to all ceph-nodes'
+      #   - hosts: dest-servers
+      #   - copy:
+      #   -   src: '/etc/csync2.cluster.key'
+      #   -   dest: /etc
+      #   - when: certgen|success
+
+
+
+
+
+  

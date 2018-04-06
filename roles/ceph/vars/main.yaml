@@ -1,0 +1,4 @@
+---
+   ceph_config_path: /etc/ceph
+   ceph_lib_path: /var/lib/ceph
+   masternode: ceph-node1

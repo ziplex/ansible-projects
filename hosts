@@ -1,0 +1,20 @@
+[ceph-node1]
+172.17.80.1
+[ceph-node2]
+172.17.80.2
+[ceph-node3]
+172.17.80.3
+[docker:children]
+ceph-node1
+ceph-node2
+ceph-node3
+[osd:children]
+ceph-node1
+ceph-node2
+ceph-node3
+[source-servers]
+172.17.80.1
+[dest-servers]
+172.17.80.2 source-server=172.17.80.1
+172.17.80.3 source-server=172.17.80.1
+

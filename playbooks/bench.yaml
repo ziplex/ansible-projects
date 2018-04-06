@@ -1,0 +1,8 @@
+---
+ - hosts: ceph-node1
+   gather_facts: False  
+   user: ziplex
+   become: yes
+   become_method: sudo
+   roles:
+    - bench

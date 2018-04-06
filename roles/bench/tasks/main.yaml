@@ -1,0 +1,124 @@
+---
+    - name: 'Create test pool'
+      shell: ceph osd pool create scbench 512 512 >/tmp/sbench.lok creates=/tmp/sbench.lok
+      
+    - name: 'Start rados benchmark write test'
+      shell: rados bench -p scbench {{ bench_time }} write --no-cleanup 
+      tags: bench1
+      register: bench1
+   
+    - name: 'Show result bench1'
+      debug: var=bench1.stdout_lines
+      tags: bench1
+
+    - name: 'Start rados benchmark seq test'
+      shell: rados bench -p scbench {{ bench_time }}  seq 
+      tags: bench2
+      register: bench2
+   
+    - name: 'Show result bench2'
+      debug: var=bench2.stdout_lines
+      tags: bench2
+
+    - name: 'Start rados benchmark rand test'
+      shell: rados bench -p scbench {{ bench_time }} rand 
+      tags: bench3
+      register: bench3
+   
+    - name: 'Show result bench3'
+      debug: var=bench3.stdout_lines
+      tags: bench3
+
+    - name: 'Start rados pool clear'
+      shell: rados -p scbench cleanup
+      tags: cleanup
+   
+
+    - name: 'Create rbdbench pool'
+      shell: ceph osd pool create rbdbench 512 512 > /tmp/rbench.lok creates=/tmp/rbench.lok
+      tags: rbdbench1
+   
+    - name: 'Create rbd image'
+      shell: rbd create image01 --size 1024 --pool rbdbench > /tmp/rbimg.lok creates=/tmp/rbimg.lok
+      tags: rbdbench1
+   
+    - name: 'Disable rbd features for map rbd device'
+      shell: rbd feature disable rbdbench/image01 exclusive-lock object-map fast-diff deep-flatten >/tmp/disf.lok creates=/tmp/disf.lok
+      tags: rbdbench1
+   
+    - name: 'Modprobe rbd '
+      shell: modprobe rbd
+      tags: rbdbench1
+   
+    - name: 'map rbd device'
+      shell: rbd map image01 --pool rbdbench --name client.admin
+      tags: rbdbench1
+ 
+    - name: 'Create fs EXT4 on rbd device'
+      filesystem:
+        fstype: ext4
+        dev: /dev/rbd/rbdbench/image01
+        opts: -m0
+      tags: rbdbench1
+
+ 
+    - name: 'Create dir for mount rbd devive'
+      file: path=/mnt/rbd mode=755 state=directory owner=root group=root
+      tags: rbdbench1
+
+    - name: 'Mount up rbd device'
+      mount:
+          path: /mnt/rbd
+          src: /dev/rbd/rbdbench/image01
+          fstype: ext4
+          state: present
+      tags: rbdbench1   
+
+    - name: 'Start rbd bench '
+      shell: rbd bench-write image01 --pool=rbdbench
+      tags: rbdbench1
+      register: rbdbench1
+   
+
+    - name: 'Show result rbdbench1'
+      debug: var=rbdbench1.stdout_lines
+      tags: rbdbench1
+
+    - name: 'Copy fio template for test'
+      template:
+              src: fio.j2
+              dest: /etc/fio.cfg     
+      tags: fio  
+
+    - name: 'Start FIO test '
+      shell: fio /etc/fio.cfg
+      tags: fio 
+      register: fio
+ 
+    - name: 'Show result fio bench'
+      debug: var=fio.stdout_lines
+      tags: fio
+
+ 
+    - name: 'Destroy sbench pool '
+      shell: ceph osd pool delete scbench scbench  --yes-i-really-really-mean-it 
+      tags: clearall
+      register: clearsb
+ 
+
+    - name: 'Destroy rbdbench pool '
+      shell: ceph osd pool delete rbdbench rbdbench  --yes-i-really-really-mean-it 
+      tags: clearall
+      register: clearrb
+
+    - name: 'Clear tmp dir '
+      shell: rm /tmp/*.lok 
+      tags: clearall
+      register: rmtmp
+ 
+   
+ 
+
+
+
+  

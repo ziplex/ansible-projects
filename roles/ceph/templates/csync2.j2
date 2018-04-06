@@ -1,0 +1,14 @@
+group all {
+# group hosts
+host ceph-node1 ceph-node2 ceph-node3;
+
+# auth key
+key /etc/csync2.cluster.key;
+
+# sync dirs 
+include /etc/hosts; 
+include /etc/csync2.cfg; 
+include /etc/ceph/*;
+include /var/lib/ceph/bootstrap-*; 
+auto younger; 
+}
