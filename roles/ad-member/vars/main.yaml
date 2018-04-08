@@ -1,3 +1,8 @@
 ---
-   ntp_config_path: /etc
-   ntp_server: 172.17.80.100
+   config_path: /etc
+   ntp_server: 172.17.10.10
+   domain_user: Administrator
+   domain_user_password: ADMINISTRATOR_PASSWORD
+   domain_name: DOMAIN.COM
+   work_group_name: DOMAIN
+   fqdn_domain_name: pdc.domain.com

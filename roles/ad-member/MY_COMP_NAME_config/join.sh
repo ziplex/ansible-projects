@@ -53,9 +53,9 @@ if ! [ -f /etc/pam.d/common-session.bak ] ; then
 	cp /etc/pam.d/common-session /etc/pam.d/common-session.bak
 fi
 
-cp -rf $ROOT_PATH/head /etc/resolvconf/resolv.conf.d/head
-cp -rf $ROOT_PATH/hostname /etc/hostname
-cp -rf $ROOT_PATH/hosts /etc/hosts
+# cp -rf $ROOT_PATH/head /etc/resolvconf/resolv.conf.d/head
+# cp -rf $ROOT_PATH/hostname /etc/hostname
+# cp -rf $ROOT_PATH/hosts /etc/hosts
 cp -rf $ROOT_PATH/ntp.conf /etc/ntp.conf
 cp -rf $ROOT_PATH/krb5.conf /etc/krb5.conf
 cp -rf $ROOT_PATH/smb.conf /etc/samba/smb.conf

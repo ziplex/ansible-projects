@@ -1,6 +1,6 @@
 [global]
-workgroup = EFIR
-realm = EFIR.DOM
+workgroup = {{ work_group_name | upper }}
+realm = {{ domain_name | upper }}
 server string = 
 security = ADS
 encrypt passwords = true

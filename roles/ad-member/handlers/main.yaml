@@ -1,5 +1,11 @@
 ---
  - name: ntp restart
    service: name=ntp state=restarted
-
-
+ - name: smb restart
+   service: name=smb state=restarted
+ - name: winbind restart
+   service: name=winbind state=restarted
+ - name: winbind stop
+   service: name=winbind state=stopped
+ - name: winbind start
+   service: name=winbind state=started

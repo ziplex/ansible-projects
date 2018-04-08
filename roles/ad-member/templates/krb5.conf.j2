@@ -1,5 +1,5 @@
 [libdefaults]
-    default_realm = EFIR.DOM
+    default_realm = {{ domain_name | upper }}
     kdc_timesync = 1
     ccache_type = 4
     forwardable = true
@@ -17,16 +17,16 @@
     fcc-mit-ticketflags = true
 
 [realms]
-    EFIR.DOM = {
-	kdc = pdc.efir.dom
+   {{ domain_name }} = {
+	kdc = {{ fqdn_domain_name | lower }}
 	
-	admin_server = pdc.efir.dom
-	default_domain = EFIR.DOM
+	admin_server = {{ fqdn_domain_name }}
+	default_domain = {{ domain_name | upper }}
     }
 
 [domain_realm]
-    .efir.dom = EFIR.DOM
-    efir.dom = EFIR.DOM
+    .{{ domain_name | lower }} = {{ domain_name | upper }}
+    {{ domain_name | lower }} = {{ domain_name | upper }}
 [login]
     krb4_convert = false
     krb4_get_tickets = false

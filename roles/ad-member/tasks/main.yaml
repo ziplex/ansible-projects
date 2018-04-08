@@ -47,17 +47,56 @@
         
       register: recomendedinstalled
 
+    
     - name: 'Copy ntp config'
-      when: recomendedinstalled|success
-      copy: src=ntp.conf dest={{ ntp_config_path }}  owner=root group=root  
-      backup: yes
+      when: recomendedinstalled
+      template:
+         src: ntp.conf.j2
+         dest: {{ config_path }}
+         backup: yes   
+     
+    - name: 'Copy common-session'
+      when: recomendedinstalled
+      template:
+         src: common-session.j2
+         dest: {{ config_path }}/pam.d
+         backup: yes   
+    
+    - name: 'Copy krb5 config'
+      when: recomendedinstalled
+      template:
+         src: krb5.conf.j2
+         dest: {{ config_path }}
+         backup: yes   
+    
+    - name: 'Copy limits config'
+      when: recomendedinstalled
+      template:
+         src: limits.conf.j2
+         dest: {{ config_path }}/security/
+         backup: yes   
+   
+    - name: 'Copy nsswitch config'
+      when: recomendedinstalled
+      template:
+         src: nsswitch.conf.j2
+         dest: {{ config_path }}
+         backup: yes   
+   
+    - name: 'Copy smb config'
+      when: recomendedinstalled
+      template:
+         src: smb.conf.j2
+         dest: {{ config_path }}/samba/
+         backup: yes
+       notify:
+       - ntp restart
+       - winbind stop
+       - smb restart
+       - winbind restart
    
     - name: Update time
       command: ntpdate -q '{{ ntp_server }}'
 
-    - name: 'Copy template config for csync2'
-      when: ansible_hostname == masternode|string
-      template:
-         src: csync2.j2
-         dest: /etc/csync2.cfg
-         backup: yes   
+    - name: Join to domain
+      command: net ads join -U '{{ domain_user }}'%'{{ domain_user_password }}' -D '{{ domain_name }}'
