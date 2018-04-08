@@ -52,48 +52,48 @@
       when: recomendedinstalled
       template:
          src: ntp.conf.j2
-         dest: {{ config_path }}
+         dest: '{{ config_path }}'
          backup: yes   
      
     - name: 'Copy common-session'
       when: recomendedinstalled
       template:
          src: common-session.j2
-         dest: {{ config_path }}/pam.d
+         dest: '{{ config_path }}/pam.d'
          backup: yes   
     
     - name: 'Copy krb5 config'
       when: recomendedinstalled
       template:
          src: krb5.conf.j2
-         dest: {{ config_path }}
+         dest: '{{ config_path }}'
          backup: yes   
     
     - name: 'Copy limits config'
       when: recomendedinstalled
       template:
          src: limits.conf.j2
-         dest: {{ config_path }}/security/
+         dest: '{{ config_path }}/security/'
          backup: yes   
    
     - name: 'Copy nsswitch config'
       when: recomendedinstalled
       template:
          src: nsswitch.conf.j2
-         dest: {{ config_path }}
+         dest: '{{ config_path }}'
          backup: yes   
    
     - name: 'Copy smb config'
       when: recomendedinstalled
       template:
          src: smb.conf.j2
-         dest: {{ config_path }}/samba/
+         dest: '{{ config_path }}/samba/'
          backup: yes
-       notify:
-       - ntp restart
-       - winbind stop
-       - smb restart
-       - winbind restart
+         notify:
+         - ntp restart
+         - winbind stop
+         - smb restart
+         - winbind restart
    
     - name: Update time
       command: ntpdate -q '{{ ntp_server }}'
