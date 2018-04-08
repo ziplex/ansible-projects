@@ -1,0 +1,63 @@
+---
+    - name: 'Update repository and system by running:'
+      apt: 
+        update_cache: yes  
+        upgrade: dist  
+       
+    - name: 'Set time zone to Yekaterinburg'
+      timezone:
+        name: Asia/Yekaterinburg
+
+    - name: 'generate locale ru_RU.UTF-8'
+      locale_gen:
+        name: ru_RU.UTF-8
+        state: present
+      
+
+    - name: 'Install Recomended packages:'
+      apt: name={{ item }} state=present update_cache=yes 
+      with_items:
+        - krb5-user
+        - samba samba-common-bin
+        - winbind
+        - ntp
+        - ntpdate
+        - libpam-krb5
+        - libpam-winbind
+        - libnss-winbind
+        - libpam-ccreds
+        - nscd
+        - nss-updatedb
+        - libnss-db
+        - htop
+        - iotop
+        - mc
+        - tmux
+        - strace
+        - python-pip
+        - apt-transport-https
+        - ca-certificates 
+        - curl 
+        - gnupg2 
+        - software-properties-common
+        - dirmngr
+        - python-apt
+        - git-core
+        
+        
+      register: recomendedinstalled
+
+    - name: 'Copy ntp config'
+      when: recomendedinstalled|success
+      copy: src=ntp.conf dest={{ ntp_config_path }}  owner=root group=root  
+      backup: yes
+   
+    - name: Update time
+      command: ntpdate -q '{{ ntp_server }}'
+
+    - name: 'Copy template config for csync2'
+      when: ansible_hostname == masternode|string
+      template:
+         src: csync2.j2
+         dest: /etc/csync2.cfg
+         backup: yes   

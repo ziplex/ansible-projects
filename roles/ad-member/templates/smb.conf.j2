@@ -1,0 +1,40 @@
+[global]
+workgroup = EFIR
+realm = EFIR.DOM
+server string = 
+security = ADS
+encrypt passwords = true
+dns proxy = no 
+socket options = TCP_NODELAY
+domain master = no
+local master = no
+preferred master = no
+os level = 0
+domain logons = no
+idmap config * : range = 10000-20000
+idmap config * : backend = tdb 
+winbind enum groups = yes
+winbind enum users = yes
+winbind use default domain = yes
+template shell = /bin/bash
+winbind refresh tickets = yes
+winbind offline logon = yes
+winbind cache time = 300
+
+[printers]
+comment = All Printers
+browseable = no
+path = /var/spool/samba
+printable = yes
+guest ok = no
+read only = yes
+create mask = 0700
+
+# Windows clients look for this share name as a source of downloadable
+# printer drivers
+[print$]
+comment = Printer Drivers
+path = /var/lib/samba/printers
+browseable = yes
+read only = yes
+guest ok = no
