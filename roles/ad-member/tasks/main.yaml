@@ -18,7 +18,8 @@
       apt: name={{ item }} state=present update_cache=yes 
       with_items:
         - krb5-user
-        - samba samba-common-bin
+        - samba 
+        - samba-common-bin
         - winbind
         - ntp
         - ntpdate
@@ -52,48 +53,48 @@
       when: recomendedinstalled
       template:
          src: ntp.conf.j2
-         dest: '{{ config_path }}'
+         dest: '{{ config_path }}/ntp.conf'
          backup: yes   
      
     - name: 'Copy common-session'
       when: recomendedinstalled
       template:
          src: common-session.j2
-         dest: '{{ config_path }}/pam.d'
+         dest: '{{ config_path }}/pam.d/common-session'
          backup: yes   
     
     - name: 'Copy krb5 config'
       when: recomendedinstalled
       template:
          src: krb5.conf.j2
-         dest: '{{ config_path }}'
+         dest: '{{ config_path }}/krb5.conf'
          backup: yes   
     
     - name: 'Copy limits config'
       when: recomendedinstalled
       template:
          src: limits.conf.j2
-         dest: '{{ config_path }}/security/'
+         dest: '{{ config_path }}/security/limits.conf'
          backup: yes   
    
     - name: 'Copy nsswitch config'
       when: recomendedinstalled
       template:
          src: nsswitch.conf.j2
-         dest: '{{ config_path }}'
+         dest: '{{ config_path }}/nsswitch.conf'
          backup: yes   
    
     - name: 'Copy smb config'
       when: recomendedinstalled
       template:
          src: smb.conf.j2
-         dest: '{{ config_path }}/samba/'
+         dest: '{{ config_path }}/samba/smb.conf'
          backup: yes
-         notify:
-         - ntp restart
-         - winbind stop
-         - smb restart
-         - winbind restart
+      notify:
+      - ntp restart
+      - winbind stop
+      - smb restart
+      - winbind restart
    
     - name: Update time
       command: ntpdate -q '{{ ntp_server }}'
