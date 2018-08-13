@@ -1,0 +1,70 @@
+---
+- hosts: proxmox
+  user: ziplex
+  become: yes
+  become_method: sudo
+  vars:
+    repo: deb http://download.proxmox.com/debian/pve stretch pve-no-subscription
+    
+  
+  tasks:
+   
+    - name: 'Change hosts file row with: 127.0.0.1'
+      replace: 
+        backup: yes  
+        dest: /etc/hosts  
+        regexp: '127.0.0.1.+localhost'  
+        replace: '127.0.0.1 localhost.localdomain localhost' 
+        
+
+    - name: 'Change hosts file row with: {{ ansible_default_ipv4.address }}'
+      replace: 
+        backup: yes  
+        dest: /etc/hosts  
+        regexp: '^{{ ansible_default_ipv4.address }}.+$'
+        replace: '{{ ansible_default_ipv4.address }} {{ ansible_fqdn }} {{ ansible_hostname }} pvelocalhost'   
+
+    
+    - name: 'Add the Proxmox VE repository key: '
+      shell: wget http://download.proxmox.com/debian/proxmox-ve-release-5.x.gpg -O /etc/apt/trusted.gpg.d/proxmox-ve-release-5.x.gpg
+      
+
+    - name: 'Add the Proxmox VE repository: '
+      apt_repository: 
+        repo: '{{ repo }}'
+        state: present 
+        filename: pve-install-repo.list
+        update_cache: yes
+
+
+    - name: 'Update repository and system by running:'
+      apt: 
+        update_cache: yes  
+        upgrade: dist  
+       
+   
+    - name: 'Install Recomended packages:'
+      apt: name={{ item }} state=present update_cache=yes 
+      with_items:
+        - sudo
+        - htop
+        - atop
+        - iotop
+        - mc
+        - tmux
+        - strace
+        - proxmox-ve
+        - postfix
+        - open-iscsi
+      register: apt_result
+      until: apt_result.rc == 0
+      retries: 5
+      delay: 2
+      ignore_errors: True
+
+    
+    
+    - name: 'Debug vars:'
+      debug: var=ansible_default_ipv4
+    
+  
